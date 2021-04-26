@@ -2,7 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cookieSession = require("cookie-session");
 const usersRepo = require("./repositories/users");
-
+// email test
 const app = express();
 // passes this middleware funtions to all route handlers
 app.use(bodyParser.urlencoded({ extended: true }));
