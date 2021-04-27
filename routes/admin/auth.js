@@ -1,7 +1,14 @@
 const express = require("express");
-const usersReop = require("../../repositories/users");
+// destructor off single 'check' function that we plan on using
+const { check, validationResult } = require("express-validator");
+const usersRepo = require("../../repositories/users");
 const signupTemplate = require("../../views/admin/auth/signup");
 const signinTemplate = require("../../views/admin/auth/signin");
+const {
+  requireEmail,
+  requirePassword,
+  requirePasswordConfirmation,
+} = require("./validators");
 
 const router = express.Router();
 
@@ -9,44 +16,31 @@ router.get("/signup", (req, res) => {
   res.send(signupTemplate({ req }));
 });
 
-// Homebuilt bodyParser function
-// const bodyParser = (req, res, next) => {
-//   if (req.method === "POST") {
-//     req.on("data", (data) => {
-//       const parsed = data.toString("utf8").split("&");
-//       const formData = {};
-//       for (let pair of parsed) {
-//         const [key, value] = pair.split("=");
-//         formData[key] = value;
-//       }
-//       req.body = formData;
-//       next();
-//     });
-//   } else {
-//     next();
-//   }
-// };
+router.post(
+  "/signup",
+  [
+    // this will all flow into req object
+    requireEmail,
+    requirePassword,
+    requirePasswordConfirmation,
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
 
-router.post("/signup", async (req, res) => {
-  // get access to form data
-  const { email, password, passwordConfirmation } = req.body;
+    if (!errors.isEmpty()) {
+      return res.send(signupTemplate({ req, errors }));
+    }
+    // get access to form data
+    const { email, password, passwordConfirmation } = req.body;
 
-  const existingUser = await usersRepo.getOneBy({ email });
-  if (existingUser) {
-    return res.send("Email in use");
+    // create a user in our user repo to represent this person
+    const user = await usersRepo.create({ email: email, password: password });
+    // Store the id that user inside the users cookie
+    // .session property is added by cookie-session middleware
+    req.session.userID = user.id;
+    res.send("Account Created");
   }
-
-  if (password !== passwordConfirmation) {
-    return res.send("Passwords must match");
-  }
-
-  // create a user in our user repo to represent this person
-  const user = await usersRepo.create({ email: email, password: password });
-  // Store the id that user inside the users cookie
-  // .session property is added by cookie-session middleware
-  req.session.userID = user.id;
-  res.send("Account Created");
-});
+);
 
 router.get("/signout", (req, res) => {
   req.session = null;
